@@ -36,38 +36,6 @@ class HighlightView extends StatelessWidget {
     int tabSize = 8, // TODO: https://github.com/flutter/flutter/issues/50087
   }) : source = input.replaceAll('\t', ' ' * tabSize);
 
-  List<TextSpan> _convert(List<Node> nodes) {
-    List<TextSpan> spans = [];
-    var currentSpans = spans;
-    List<List<TextSpan>> stack = [];
-
-    _traverse(Node node) {
-      if (node.value != null) {
-        currentSpans.add(node.className == null
-            ? TextSpan(text: node.value)
-            : TextSpan(text: node.value, style: theme[node.className!]));
-      } else if (node.children != null) {
-        List<TextSpan> tmp = [];
-        currentSpans.add(TextSpan(children: tmp, style: theme[node.className!]));
-        stack.add(currentSpans);
-        currentSpans = tmp;
-
-        node.children!.forEach((n) {
-          _traverse(n);
-          if (n == node.children!.last) {
-            currentSpans = stack.isEmpty ? spans : stack.removeLast();
-          }
-        });
-      }
-    }
-
-    for (var node in nodes) {
-      _traverse(node);
-    }
-
-    return spans;
-  }
-
   static const _rootKey = 'root';
   static const _defaultFontColor = Color(0xff000000);
   static const _defaultBackgroundColor = Color(0xffffffff);
@@ -93,9 +61,45 @@ class HighlightView extends StatelessWidget {
       child: RichText(
         text: TextSpan(
           style: _textStyle,
-          children: _convert(highlight.parse(source, language: language).nodes!),
+          children: getHighlightTextSpan(source, language, theme),
         ),
       ),
     );
   }
+}
+
+List<TextSpan> getHighlightTextSpan(source, language, theme) {
+  return _convert(highlight.parse(source, language: language).nodes, theme);
+}
+
+List<TextSpan> _convert(List<Node>? nodes, theme) {
+  List<TextSpan> spans = [];
+  var currentSpans = spans;
+  List<List<TextSpan>> stack = [];
+
+  _traverse(Node node) {
+    if (node.value != null) {
+      currentSpans.add(node.className == null
+          ? TextSpan(text: node.value)
+          : TextSpan(text: node.value, style: theme[node.className!]));
+    } else if (node.children != null) {
+      List<TextSpan> tmp = [];
+      currentSpans.add(TextSpan(children: tmp, style: theme[node.className!]));
+      stack.add(currentSpans);
+      currentSpans = tmp;
+
+      node.children!.forEach((n) {
+        _traverse(n);
+        if (n == node.children!.last) {
+          currentSpans = stack.isEmpty ? spans : stack.removeLast();
+        }
+      });
+    }
+  }
+
+  for (var node in nodes ?? []) {
+    _traverse(node);
+  }
+
+  return spans;
 }
